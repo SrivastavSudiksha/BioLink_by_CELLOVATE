@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: biolink
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NCBI_EMAIL
+        sync: false
+      - key: PORT
+        value: "8000"
