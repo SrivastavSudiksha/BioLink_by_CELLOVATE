@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="BioAI Assistant — Explainable AI for cancer & diabetes research. Research use only." />
+  <meta name="theme-color" content="#0f1419" />
+  <title>BioAI Assistant — Cancer & Diabetes Research Platform</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="landing" class="landing">
+    <div class="landing-center">
+      <div class="logo-block">
+        <div class="logo-icon" aria-hidden="true">🧬</div>
+        <h1 class="logo-text">BioAI Assistant</h1>
+      </div>
+      <p class="tagline">Explainable AI for Cancer &amp; Diabetes Research</p>
+      <p class="subtag">BioBridge Bio Innovation Hackathon 2026 · BB-BG-05 · Team BioHackers</p>
+      <div class="search-box" role="search">
+        <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="mainSearch" placeholder="Search cancer, diabetes, FASTA, problem statements, code..." autocomplete="off" aria-label="Search modules" />
+        <button class="search-btn" id="searchBtn" title="Search" aria-label="Search"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></button>
+      </div>
+      <div class="quick-links">
+        <button class="quick-btn" data-module="statements">🔬 Problem Statements</button>
+        <button class="quick-btn" data-module="qa">💬 Grounded Q&amp;A</button>
+        <button class="quick-btn" data-module="fasta">🧬 FASTA Analyzer</button>
+        <button class="quick-btn" data-module="code">💻 Code Studio</button>
+      </div>
+      <p class="landing-footer">Research &amp; educational use only · Not a medical device · No personal health data stored</p>
+    </div>
+  </div>
+  <div id="app" class="app hidden">
+    <header class="topbar">
+      <div class="topbar-left"><button class="home-btn" id="homeBtn" title="Back to home" aria-label="Home">🧬 BioAI</button></div>
+      <div class="topbar-search"><div class="search-box compact">
+        <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="appSearch" placeholder="Jump to module..." aria-label="Module search" />
+      </div></div>
+      <div class="topbar-right"><span class="llm-badge">Domain LLM · RAG</span></div>
+    </header>
+    <nav class="module-tabs" role="tablist">
+      <button class="mod-tab active" role="tab" data-module="statements" aria-selected="true">🔬 Problem Statements</button>
+      <button class="mod-tab" role="tab" data-module="qa" aria-selected="false">💬 Grounded Q&amp;A</button>
+      <button class="mod-tab" role="tab" data-module="fasta" aria-selected="false">🧬 FASTA Analyzer</button>
+      <button class="mod-tab" role="tab" data-module="code" aria-selected="false">💻 Code Studio</button>
+    </nav>
+    <main class="content">
+      <section id="mod-statements" class="module active" role="tabpanel">
+        <h2 class="module-title">Problem Statement Generator</h2>
+        <p class="module-desc">Literature-mined research gaps → structured problem + proposed AI solution. 10 diabetes problems from research_paper.csv + cancer/MODY templates.</p>
+        <div class="input-row">
+          <input type="text" id="domainInput" placeholder='e.g. "cross-dataset", "missing data", "explainable", "cancer"...' value="cross-dataset" aria-label="Domain" />
+          <button class="btn primary" id="generateBtn">Generate Statement</button>
+        </div>
+        <p class="mode-label">Mode: <strong>Literature-grounded templates</strong></p>
+        <div id="statementResult" class="result-card hidden" aria-live="polite"></div>
+        <details class="samples" open>
+          <summary>Browse mined research problems (click to load)</summary>
+          <div class="sample-list" id="problemBrowse"></div>
+        </details>
+      </section>
+      <section id="mod-qa" class="module" role="tabpanel">
+        <h2 class="module-title">Grounded Q&amp;A (Cancer / Diabetes)</h2>
+        <p class="module-desc">Restricted research assistant with source citations. No diagnosis or treatment advice.</p>
+        <div class="disclaimer" role="note">⚠️ <strong>Research &amp; educational tool only.</strong> Not medical advice. Consult a qualified physician. No personal health data stored.</div>
+        <div class="chat-box" id="chatBox" role="log" aria-live="polite">
+          <div class="msg assistant"><span class="avatar" aria-hidden="true">🧬</span><div class="bubble">Hello. Ask a cancer- or diabetes-related research question — e.g. BRCA1 risk, MODY, cross-dataset models, SHAP. Answers include citations.</div></div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Ask a cancer- or diabetes-related question..." aria-label="Chat input" />
+          <button class="btn primary" id="sendBtn">Send</button>
+        </div>
+        <p class="hint-center">Try: BRCA1 · TP53 · MODY · cross-dataset · missing data · SHAP</p>
+      </section>
+      <section id="mod-fasta" class="module" role="tabpanel">
+        <h2 class="module-title">FASTA Sequence Analyzer</h2>
+        <p class="module-desc">Parse · DNA/RNA/protein · GC% · ORF scan · demo gene refs. Production: Biopython + BLAST + ClinVar.</p>
+        <div class="disclaimer" role="note">⚠️ Literature association only — <strong>not</strong> a diagnosis.</div>
+        <div class="two-col">
+          <div>
+            <label for="fastaInput">Paste FASTA sequence</label>
+            <textarea id="fastaInput" rows="8" placeholder=">my_seq&#10;ATGGAG..." aria-label="FASTA"></textarea>
+            <label class="file-label" for="fastaFile">Or upload (.fa / .fasta / .txt)</label>
+            <input type="file" id="fastaFile" accept=".fa,.fasta,.txt,.fna" />
+          </div>
+          <div>
+            <label for="refSelect">Demo reference</label>
+            <select id="refSelect"><option value="none">None</option><option value="tp53">TP53</option><option value="brca1">BRCA1</option><option value="ins">INS</option><option value="gck">GCK</option></select>
+            <p class="hint">Demo fragments only.</p>
+            <button type="button" class="btn secondary full-sm" id="loadDemoFasta">Load demo DNA</button>
+          </div>
+        </div>
+        <button class="btn primary full" id="analyzeBtn">Analyze Sequence</button>
+        <div id="fastaResult" class="result-card hidden" aria-live="polite"></div>
+      </section>
+      <section id="mod-code" class="module" role="tabpanel">
+        <h2 class="module-title">Code Studio</h2>
+        <p class="module-desc">Problem → runnable explainable ML starter (scikit-learn, missing-data, SHAP notes).</p>
+        <div class="input-row">
+          <input type="text" id="codePrompt" placeholder='e.g. "cross-dataset diabetes" or "explainable T2D with SHAP"' aria-label="Code prompt" />
+          <button class="btn primary" id="genCodeBtn">Generate Code</button>
+        </div>
+        <div id="codeResult" class="result-card code-card hidden" aria-live="polite">
+          <div class="code-toolbar"><span class="code-lang">Python · scikit-learn</span><button type="button" class="btn secondary sm" id="copyCodeBtn">Copy</button></div>
+          <pre><code id="codeOutput"></code></pre>
+        </div>
+        <details class="samples"><summary>Suggested prompts</summary><div class="sample-list" id="codePrompts"></div></details>
+      </section>
+    </main>
+    <footer class="app-footer">BioAI Assistant · Team BioHackers · BB-BG-05 · Research only — not a medical device · problem_statement.csv · research_paper.csv</footer>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
