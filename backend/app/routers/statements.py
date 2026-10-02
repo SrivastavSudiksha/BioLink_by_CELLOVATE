@@ -4,10 +4,13 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from backend.app.services.statements_data import PAPERS, match_statement
+import logging
+
 from backend.app.services import ncbi
+from backend.app.services.statements_data import PAPERS, match_statement
 
 router = APIRouter()
+log = logging.getLogger("biolink.statements")
 
 
 class StatementRequest(BaseModel):
@@ -48,6 +51,7 @@ async def generate(body: StatementRequest):
             term = f"{body.topic} AND (diabetes OR cancer) AND (prediction OR model OR machine learning)"
             pmids = await ncbi.pubmed_search(term, retmax=3)
             out["pubmed"] = await ncbi.pubmed_summaries(pmids)
-        except Exception as e:
-            out["pubmed_error"] = str(e)[:200]
+        except Exception:
+            log.warning("PubMed lookup failed", exc_info=True)
+            out["pubmed_error"] = "PubMed lookup unavailable"
     return out

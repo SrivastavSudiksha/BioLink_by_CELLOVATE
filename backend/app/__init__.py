@@ -1,1 +1,1 @@
-# BioAI Assistant backend
+# BioLink backend

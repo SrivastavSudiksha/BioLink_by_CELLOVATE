@@ -1,17 +1,37 @@
-/** BioAI frontend — talks to FastAPI backend when available */
-const API_BASE = (typeof window !== "undefined" && window.BIOAI_API) || "http://127.0.0.1:8000";
+const API_BASE = ((typeof window !== "undefined" && window.BIOLINK_API) || "").replace(/\/+$/, "");
+const API_TIMEOUT_MS = 45000;
 
 async function apiPost(path, body) {
-  const r = await fetch(API_BASE + path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(t || r.statusText);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
+  try {
+    const r = await fetch(API_BASE + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    if (!r.ok) {
+      let msg = r.statusText;
+      try {
+        const j = await r.json();
+        if (j && j.detail) msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      } catch (_) {}
+      throw new Error(msg || "Request failed");
+    }
+    return await r.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return r.json();
+}
+
+function safeUrl(u) {
+  try {
+    const x = new URL(u);
+    return x.protocol === "https:" ? x.href : "#";
+  } catch (_) {
+    return "#";
+  }
 }
 
 function escapeHtml(str){return String(str).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -70,9 +90,9 @@ const KB=[
 {keys:["glp-1","glp1","semaglutide"],ans:"GLP-1 receptor agonists enhance glucose-dependent insulin secretion and reduce appetite. CVOT literature reported MACE reduction. Research context only — not prescribing advice.\n\n[1] WHO EML\n[2] CVOT literature"}
 ];
 function kbReply(query){const q=query.toLowerCase();let best=null,bestHits=0;KB.forEach(e=>{const hits=e.keys.filter(k=>q.includes(k)).length;if(hits>bestHits){bestHits=hits;best=e}});if(!best||bestHits===0)return "No strong match. Try: BRCA1, TP53, MODY, cross-dataset, missing data, SHAP.\n\nDisclaimer: Research use only — not medical advice.";return best.ans+"\n\nDisclaimer: Research/educational use only — not medical diagnosis or treatment advice."}
-function appendMsg(role,text){const box=document.getElementById("chatBox");const div=document.createElement("div");div.className="msg "+role;if(role==="assistant")div.innerHTML=`<span class="avatar" aria-hidden="true">🧬</span><div class="bubble">${text.replace(/\n/g,"<br>")}</div>`;else div.innerHTML=`<div class="bubble">${escapeHtml(text)}</div>`;box.appendChild(div);box.scrollTop=box.scrollHeight}
-async function sendChat(){const input=document.getElementById("chatInput");const q=(input.value||"").trim();if(!q)return;appendMsg("user",q);input.value="";const btn=document.getElementById("sendBtn");btn.disabled=true;
-try{const data=await apiPost("/api/qa/ask",{question:q,use_pubmed:true,retmax:5});appendMsg("assistant",data.answer)}catch(e){appendMsg("assistant",kbReply(q)+"\n\n(Offline KB — start backend for live PubMed)")}
+function appendMsg(role,text){const box=document.getElementById("chatBox");const div=document.createElement("div");div.className="msg "+role;if(role==="assistant")div.innerHTML=`<span class="avatar" aria-hidden="true">🧬</span><div class="bubble">${escapeHtml(text).replace(/\n/g,"<br>")}</div>`;else div.innerHTML=`<div class="bubble">${escapeHtml(text)}</div>`;box.appendChild(div);box.scrollTop=box.scrollHeight}
+async function sendChat(){const input=document.getElementById("chatInput");const btn=document.getElementById("sendBtn");if(btn.disabled)return;const q=(input.value||"").trim().slice(0,500);if(!q)return;appendMsg("user",q);input.value="";btn.disabled=true;
+try{const data=await apiPost("/api/qa/ask",{question:q,use_pubmed:true,retmax:5});appendMsg("assistant",data.answer)}catch(e){appendMsg("assistant",kbReply(q)+"\n\n(Offline knowledge base — live PubMed temporarily unavailable)")}
 btn.disabled=false}
 document.getElementById("sendBtn").addEventListener("click",sendChat);
 document.getElementById("chatInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});
@@ -81,9 +101,9 @@ document.getElementById("loadDemoFasta").addEventListener("click",()=>{document.
 document.getElementById("fastaFile").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{document.getElementById("fastaInput").value=ev.target.result};r.readAsText(f)});
 const REFS={tp53:{name:"TP53 (demo)",note:"Guardian of the genome. Demo only."},brca1:{name:"BRCA1 (demo)",note:"HR repair gene. Demo only."},ins:{name:"INS (demo)",note:"Insulin gene. Demo only."},gck:{name:"GCK (demo)",note:"MODY-related. Demo only."}};
 function findSimpleOrfs(seq,minLen=30){const stops=new Set(["TAA","TAG","TGA"]);const orfs=[];for(let frame=0;frame<3;frame++){let i=frame;while(i+3<=seq.length){if(seq.slice(i,i+3)==="ATG"){let j=i+3;while(j+3<=seq.length){const c=seq.slice(j,j+3);if(stops.has(c)){const len=j+3-i;if(len>=minLen)orfs.push({start:i+1,end:j+3,frame:frame+1,length:len});break}j+=3}}i+=3}}return orfs.slice(0,8)}
-document.getElementById("analyzeBtn").addEventListener("click",()=>{const raw=(document.getElementById("fastaInput").value||"").trim();if(!raw){alert("Paste or upload a FASTA sequence first.");return}const btn=document.getElementById("analyzeBtn");btn.disabled=true;btn.innerHTML='<span class="loading"></span> Analyzing…';setTimeout(()=>{const lines=raw.split(/\r?\n/);let id="sequence",seq="";lines.forEach(line=>{if(line.startsWith(">"))id=line.slice(1).trim()||id;else seq+=line.trim()});seq=seq.toUpperCase().replace(/[^A-Z*]/g,"");const len=seq.length;const isNuc=len>0&&/^[ACGTURYSWKMBDHVN]+$/.test(seq);const type=!isNuc?"Protein / mixed":seq.includes("U")&&!seq.includes("T")?"RNA":"DNA";const unit=isNuc?"bp":"aa";const gc=isNuc&&len?(((seq.match(/[GC]/g)||[]).length/len)*100).toFixed(2)+"%":"n/a";let orfHtml="";if(isNuc&&len>=30){const orfs=findSimpleOrfs(seq);orfHtml=orfs.length?`<p><strong>Simple ORF scan</strong>:</p><ul style="margin:.4rem 0 .8rem 1.2rem;font-size:.88rem;color:var(--text-muted)">`+orfs.map(o=>`<li>Frame ${o.frame}: ${o.start}–${o.end} (${o.length} bp)</li>`).join("")+`</ul>`:`<p style="font-size:.88rem;color:var(--text-muted)">No ORFs ≥30 bp found.</p>`}const refKey=document.getElementById("refSelect").value;let refHtml="";if(refKey!=="none"&&REFS[refKey]){const r=REFS[refKey];refHtml=`<div class="ok-box">📎 <strong>${escapeHtml(r.name)}</strong><br>${escapeHtml(r.note)}</div>`}document.getElementById("fastaResult").innerHTML=`<h3 style="margin-bottom:.75rem;font-weight:600;">📄 ${escapeHtml(id)}</h3><div class="metrics"><div class="metric"><span class="label">Type</span><span class="value">${type}</span></div><div class="metric"><span class="label">Length</span><span class="value">${len.toLocaleString()} ${unit}</span></div><div class="metric"><span class="label">GC</span><span class="value">${gc}</span></div><div class="metric"><span class="label">Unique</span><span class="value">${new Set(seq).size}</span></div></div>${orfHtml}${refHtml}<div class="ok-box">✅ Basic analysis complete. Does not diagnose disease.</div>`;document.getElementById("fastaResult").classList.remove("hidden");btn.disabled=false;btn.textContent="Analyze Sequence"},400)});
+const offlineAnalyze=()=>{const raw=(document.getElementById("fastaInput").value||"").trim();if(!raw){alert("Paste or upload a FASTA sequence first.");return}const btn=document.getElementById("analyzeBtn");btn.disabled=true;btn.innerHTML='<span class="loading"></span> Analyzing…';setTimeout(()=>{const lines=raw.split(/\r?\n/);let id="sequence",seq="";lines.forEach(line=>{if(line.startsWith(">"))id=line.slice(1).trim()||id;else seq+=line.trim()});seq=seq.toUpperCase().replace(/[^A-Z*]/g,"");const len=seq.length;const isNuc=len>0&&/^[ACGTURYSWKMBDHVN]+$/.test(seq);const type=!isNuc?"Protein / mixed":seq.includes("U")&&!seq.includes("T")?"RNA":"DNA";const unit=isNuc?"bp":"aa";const gc=isNuc&&len?(((seq.match(/[GC]/g)||[]).length/len)*100).toFixed(2)+"%":"n/a";let orfHtml="";if(isNuc&&len>=30){const orfs=findSimpleOrfs(seq);orfHtml=orfs.length?`<p><strong>Simple ORF scan</strong>:</p><ul style="margin:.4rem 0 .8rem 1.2rem;font-size:.88rem;color:var(--text-muted)">`+orfs.map(o=>`<li>Frame ${o.frame}: ${o.start}–${o.end} (${o.length} bp)</li>`).join("")+`</ul>`:`<p style="font-size:.88rem;color:var(--text-muted)">No ORFs ≥30 bp found.</p>`}const refKey=document.getElementById("refSelect").value;let refHtml="";if(refKey!=="none"&&REFS[refKey]){const r=REFS[refKey];refHtml=`<div class="ok-box">📎 <strong>${escapeHtml(r.name)}</strong><br>${escapeHtml(r.note)}</div>`}document.getElementById("fastaResult").innerHTML=`<h3 style="margin-bottom:.75rem;font-weight:600;">📄 ${escapeHtml(id)}</h3><div class="metrics"><div class="metric"><span class="label">Type</span><span class="value">${type}</span></div><div class="metric"><span class="label">Length</span><span class="value">${len.toLocaleString()} ${unit}</span></div><div class="metric"><span class="label">GC</span><span class="value">${gc}</span></div><div class="metric"><span class="label">Unique</span><span class="value">${new Set(seq).size}</span></div></div>${orfHtml}${refHtml}<div class="ok-box">✅ Basic analysis complete. Does not diagnose disease.</div>`;document.getElementById("fastaResult").classList.remove("hidden");btn.disabled=false;btn.textContent="Analyze Sequence"},400)};
 const CODE={
-domain:`# BioAI — Domain-adaptive / cross-dataset diabetes risk
+domain:`# BioLink — Domain-adaptive / cross-dataset diabetes risk
 # Research only. Validate on each target population.
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -106,7 +126,7 @@ def train_domain_model(X, y, X_ext=None, y_ext=None):
     return pipe
 # Not a medical device.
 `,
-missing:`# BioAI — Missing-data-robust diabetes classifier
+missing:`# BioLink — Missing-data-robust diabetes classifier
 from sklearn.impute import SimpleImputer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.pipeline import Pipeline
@@ -116,7 +136,7 @@ pipe = Pipeline([
 ])
 # Research use only.
 `,
-explain:`# BioAI — Explainable T2D risk (SHAP notes)
+explain:`# BioLink — Explainable T2D risk (SHAP notes)
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
@@ -128,7 +148,7 @@ pipe = Pipeline([
 # After fit: shap.Explainer on the classifier for local explanations.
 # Not clinical advice.
 `,
-cancer:`# BioAI — BRCA-style pathogenicity classifier starter
+cancer:`# BioLink — BRCA-style pathogenicity classifier starter
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 # Features: conservation, gnomAD AF, domain flags; labels from ClinVar
@@ -136,7 +156,7 @@ imp = SimpleImputer(strategy="median")
 clf = GradientBoostingClassifier(n_estimators=150, max_depth=3, learning_rate=0.05, random_state=42)
 # Research triage only — not ACMG clinical classification.
 `,
-default:`# BioAI — generic explainable ML scaffold
+default:`# BioLink — generic explainable ML scaffold
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
@@ -156,49 +176,48 @@ document.getElementById("copyCodeBtn").addEventListener("click",()=>{navigator.c
 const codePrompts=document.getElementById("codePrompts");
 [["Cross-dataset / domain-adaptive","cross-dataset diabetes domain adaptation"],["Missing clinical data","missing data imputation diabetes model"],["Explainable risk (SHAP)","explainable T2D risk with SHAP"],["Cancer variant classifier","BRCA pathogenicity classifier ClinVar"]].forEach(([title,prompt])=>{const div=document.createElement("div");div.className="sample-card clickable";div.innerHTML=`<h4>${title}</h4><p>${escapeHtml(prompt)}</p>`;div.addEventListener("click",()=>{document.getElementById("codePrompt").value=prompt;document.getElementById("genCodeBtn").click()});codePrompts.appendChild(div)});
 
-// Override analyze to prefer backend Biopython when available
-(function(){
+document.getElementById("analyzeBtn").addEventListener("click", async () => {
   const btn = document.getElementById("analyzeBtn");
-  if (!btn) return;
-  const clone = btn.cloneNode(true);
-  btn.parentNode.replaceChild(clone, btn);
-  clone.addEventListener("click", async () => {
-    const raw = (document.getElementById("fastaInput").value || "").trim();
-    if (!raw) { alert("Paste or upload a FASTA sequence first."); return; }
-    clone.disabled = true;
-    clone.innerHTML = '<span class="loading"></span> Analyzing…';
-    const gene = document.getElementById("refSelect").value;
-    const geneLookup = (gene && gene !== "none") ? gene.toUpperCase() : null;
-    try {
-      const data = await apiPost("/api/fasta/analyze", { sequence: raw, gene_lookup: geneLookup });
-      let orfHtml = "";
-      if (data.orfs && data.orfs.length) {
-        orfHtml = "<p><strong>ORFs</strong>:</p><ul style=\"margin:.4rem 0 .8rem 1.2rem;font-size:.88rem;color:var(--text-muted)\">" +
-          data.orfs.map(o => `<li>Frame ${o.frame}: ${o.start}–${o.end} (${o.length_bp} bp)</li>`).join("") + "</ul>";
-      }
-      let geneHtml = "";
-      if (data.gene && data.gene.summary) {
-        geneHtml = `<div class="ok-box"><strong>NCBI Gene:</strong> ${escapeHtml(data.gene.name)} — ${escapeHtml((data.gene.summary||"").slice(0,300))}…<br><a href="${data.gene.url}" target="_blank" rel="noopener">Gene record</a></div>`;
-      }
-      document.getElementById("fastaResult").innerHTML = `
-        <h3 style="margin-bottom:.75rem;font-weight:600;">📄 ${escapeHtml(data.id)}</h3>
-        <div class="metrics">
-          <div class="metric"><span class="label">Type</span><span class="value">${escapeHtml(data.type)}</span></div>
-          <div class="metric"><span class="label">Length</span><span class="value">${Number(data.length).toLocaleString()} ${escapeHtml(data.unit)}</span></div>
-          <div class="metric"><span class="label">GC</span><span class="value">${data.gc_percent != null ? data.gc_percent + "%" : "n/a"}</span></div>
-          <div class="metric"><span class="label">Unique</span><span class="value">${data.unique_symbols}</span></div>
-        </div>
-        ${orfHtml}${geneHtml}
-        <div class="ok-box">✅ ${escapeHtml(data.disclaimer || "Analysis complete.")}</div>`;
-      document.getElementById("fastaResult").classList.remove("hidden");
-    } catch (e) {
-      alert("Backend unavailable — using offline analyzer. Start: uvicorn backend.app.main:app\n" + e.message);
-      // fall through: user can still use offline if original listener remained — we replaced it
+  if (btn.disabled) return;
+  const raw = (document.getElementById("fastaInput").value || "").trim();
+  if (!raw) { alert("Paste or upload a FASTA sequence first."); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span> Analyzing…';
+  const gene = document.getElementById("refSelect").value;
+  const geneLookup = gene && gene !== "none" ? gene.toUpperCase() : null;
+  try {
+    const data = await apiPost("/api/fasta/analyze", { sequence: raw, gene_lookup: geneLookup });
+    let orfHtml = "";
+    if (data.orfs && data.orfs.length) {
+      orfHtml = '<p><strong>ORFs</strong>:</p><ul style="margin:.4rem 0 .8rem 1.2rem;font-size:.88rem;color:var(--text-muted)">' +
+        data.orfs.map(o => `<li>Frame ${Number(o.frame)}: ${Number(o.start)}–${Number(o.end)} (${Number(o.length_bp)} bp)</li>`).join("") + "</ul>";
     }
-    clone.disabled = false;
-    clone.textContent = "Analyze Sequence";
-  });
-})();
+    let geneHtml = "";
+    if (data.gene && data.gene.summary) {
+      geneHtml = `<div class="ok-box"><strong>NCBI Gene:</strong> ${escapeHtml(data.gene.name)} — ${escapeHtml((data.gene.summary || "").slice(0, 300))}…<br><a href="${escapeHtml(safeUrl(data.gene.url))}" target="_blank" rel="noopener noreferrer">Gene record</a></div>`;
+    }
+    document.getElementById("fastaResult").innerHTML = `
+      <h3 style="margin-bottom:.75rem;font-weight:600;">📄 ${escapeHtml(data.id)}</h3>
+      <div class="metrics">
+        <div class="metric"><span class="label">Type</span><span class="value">${escapeHtml(data.type)}</span></div>
+        <div class="metric"><span class="label">Length</span><span class="value">${Number(data.length).toLocaleString()} ${escapeHtml(data.unit)}</span></div>
+        <div class="metric"><span class="label">GC</span><span class="value">${data.gc_percent != null ? Number(data.gc_percent) + "%" : "n/a"}</span></div>
+        <div class="metric"><span class="label">Unique</span><span class="value">${Number(data.unique_symbols)}</span></div>
+      </div>
+      ${orfHtml}${geneHtml}
+      <div class="ok-box">✅ ${escapeHtml(data.disclaimer || "Analysis complete.")}</div>`;
+    document.getElementById("fastaResult").classList.remove("hidden");
+    btn.disabled = false;
+    btn.textContent = "Analyze Sequence";
+  } catch (e) {
+    btn.disabled = false;
+    offlineAnalyze();
+  }
+});
+
+document.querySelectorAll("img.brand-logo").forEach(img => {
+  img.addEventListener("error", () => { img.classList.add("hidden"); });
+});
 
 mainSearch.focus();
 });

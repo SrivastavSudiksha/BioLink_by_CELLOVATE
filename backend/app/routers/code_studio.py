@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 router = APIRouter()
 
 TEMPLATES = {
-    "domain": '''# BioAI — Domain-adaptive / cross-dataset diabetes risk
+    "domain": '''# BioLink — Domain-adaptive / cross-dataset diabetes risk
 # Research only. Validate on each target population.
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -31,7 +31,7 @@ def train_domain_model(X, y, X_ext=None, y_ext=None):
     return pipe
 # Not a medical device.
 ''',
-    "missing": '''# BioAI — Missing-data-robust diabetes classifier
+    "missing": '''# BioLink — Missing-data-robust diabetes classifier
 from sklearn.impute import SimpleImputer
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.pipeline import Pipeline
@@ -42,7 +42,7 @@ pipe = Pipeline([
 ])
 # Optionally add missingness indicator columns. Research use only.
 ''',
-    "explain": '''# BioAI — Explainable T2D risk (SHAP notes)
+    "explain": '''# BioLink — Explainable T2D risk (SHAP notes)
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
@@ -55,7 +55,7 @@ pipe = Pipeline([
 # After fit: use shap.Explainer on the classifier for local explanations.
 # Not clinical advice.
 ''',
-    "cancer": '''# BioAI — BRCA-style pathogenicity classifier starter
+    "cancer": '''# BioLink — BRCA-style pathogenicity classifier starter
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 
@@ -64,7 +64,7 @@ imp = SimpleImputer(strategy="median")
 clf = GradientBoostingClassifier(n_estimators=150, max_depth=3, learning_rate=0.05, random_state=42)
 # Research triage only — not ACMG clinical classification.
 ''',
-    "default": '''# BioAI — generic explainable ML scaffold
+    "default": '''# BioLink — generic explainable ML scaffold
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler

@@ -3,17 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="BioAI Assistant — Explainable AI for cancer & diabetes research. Research use only." />
+  <meta name="description" content="BioLink — Explainable AI for cancer &amp; diabetes research. Research use only." />
+  <meta name="robots" content="index,follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="BioLink — Cancer &amp; Diabetes Research Platform" />
+  <meta property="og:description" content="Literature-grounded Q&amp;A, FASTA analysis, problem statements and explainable ML starters. Research use only." />
+  <meta property="og:image" content="logo.jpg" />
+  <link rel="icon" type="image/jpeg" href="logo.jpg" />
+  <link rel="apple-touch-icon" href="logo.jpg" />
   <meta name="theme-color" content="#0f1419" />
-  <title>BioAI Assistant — Cancer & Diabetes Research Platform</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>BioLink — Cancer &amp; Diabetes Research Platform</title>
+  <link rel="stylesheet" href="style.css?v=1.1.0" />
 </head>
 <body>
   <div id="landing" class="landing">
     <div class="landing-center">
       <div class="logo-block">
-        <div class="logo-icon" aria-hidden="true">🧬</div>
-        <h1 class="logo-text">BioAI Assistant</h1>
+        <img class="brand-logo logo-img" src="logo.jpg" alt="BioLink logo" width="72" height="72" decoding="async" />
+        <h1 class="logo-text">BioLink</h1>
       </div>
       <p class="tagline">Explainable AI for Cancer &amp; Diabetes Research</p>
       <p class="subtag">BioBridge Bio Innovation Hackathon 2026 · BB-BG-05 · Team BioHackers</p>
@@ -29,16 +36,17 @@
         <button class="quick-btn" data-module="code">💻 Code Studio</button>
       </div>
       <p class="landing-footer">Research &amp; educational use only · Not a medical device · No personal health data stored</p>
+      <p class="landing-links"><a class="gh-link" href="https://github.com/YOUR_USERNAME/biolink" target="_blank" rel="noopener noreferrer" aria-label="BioLink on GitHub"><svg class="gh-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span>GitHub</span></a></p>
     </div>
   </div>
   <div id="app" class="app hidden">
     <header class="topbar">
-      <div class="topbar-left"><button class="home-btn" id="homeBtn" title="Back to home" aria-label="Home">🧬 BioAI</button></div>
+      <div class="topbar-left"><button class="home-btn" id="homeBtn" title="Back to home" aria-label="BioLink home"><img class="brand-logo topbar-logo" src="logo.jpg" alt="" width="28" height="28" decoding="async" /><span>BioLink</span></button></div>
       <div class="topbar-search"><div class="search-box compact">
         <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
         <input type="text" id="appSearch" placeholder="Jump to module..." aria-label="Module search" />
       </div></div>
-      <div class="topbar-right"><span class="llm-badge">Domain LLM · RAG</span></div>
+      <div class="topbar-right"><span class="llm-badge">Literature-grounded · PubMed</span></div>
     </header>
     <nav class="module-tabs" role="tablist">
       <button class="mod-tab active" role="tab" data-module="statements" aria-selected="true">🔬 Problem Statements</button>
@@ -49,7 +57,7 @@
     <main class="content">
       <section id="mod-statements" class="module active" role="tabpanel">
         <h2 class="module-title">Problem Statement Generator</h2>
-        <p class="module-desc">Literature-mined research gaps → structured problem + proposed AI solution. 10 diabetes problems from research_paper.csv + cancer/MODY templates.</p>
+        <p class="module-desc">Literature-mined research gaps → structured problem + proposed AI solution. 10 literature-mined diabetes problems plus cancer and MODY templates.</p>
         <div class="input-row">
           <input type="text" id="domainInput" placeholder='e.g. "cross-dataset", "missing data", "explainable", "cancer"...' value="cross-dataset" aria-label="Domain" />
           <button class="btn primary" id="generateBtn">Generate Statement</button>
@@ -76,7 +84,7 @@
       </section>
       <section id="mod-fasta" class="module" role="tabpanel">
         <h2 class="module-title">FASTA Sequence Analyzer</h2>
-        <p class="module-desc">Parse · DNA/RNA/protein · GC% · ORF scan · demo gene refs. Production: Biopython + BLAST + ClinVar.</p>
+        <p class="module-desc">Parse · DNA/RNA/protein · GC% · ORF scan · NCBI Gene reference lookup.</p>
         <div class="disclaimer" role="note">⚠️ Literature association only — <strong>not</strong> a diagnosis.</div>
         <div class="two-col">
           <div>
@@ -86,9 +94,9 @@
             <input type="file" id="fastaFile" accept=".fa,.fasta,.txt,.fna" />
           </div>
           <div>
-            <label for="refSelect">Demo reference</label>
+            <label for="refSelect">Gene reference (NCBI Gene)</label>
             <select id="refSelect"><option value="none">None</option><option value="tp53">TP53</option><option value="brca1">BRCA1</option><option value="ins">INS</option><option value="gck">GCK</option></select>
-            <p class="hint">Demo fragments only.</p>
+            <p class="hint">Adds the NCBI Gene summary for the selected gene to the result.</p>
             <button type="button" class="btn secondary full-sm" id="loadDemoFasta">Load demo DNA</button>
           </div>
         </div>
@@ -109,8 +117,10 @@
         <details class="samples"><summary>Suggested prompts</summary><div class="sample-list" id="codePrompts"></div></details>
       </section>
     </main>
-    <footer class="app-footer">BioAI Assistant · Team BioHackers · BB-BG-05 · Research only — not a medical device · problem_statement.csv · research_paper.csv</footer>
+    <footer class="app-footer"><span>BioLink · Team BioHackers · BB-BG-05 · Research only — not a medical device</span><a class="gh-link" href="https://github.com/YOUR_USERNAME/biolink" target="_blank" rel="noopener noreferrer" aria-label="BioLink on GitHub"><svg class="gh-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span>GitHub</span></a></footer>
   </div>
-  <script src="script.js"></script>
+  <noscript><p class="noscript">BioLink needs JavaScript enabled.</p></noscript>
+  <script src="config.js"></script>
+  <script src="script.js?v=1.1.0" defer></script>
 </body>
 </html>

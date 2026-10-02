@@ -1,5 +1,5 @@
-"""Grounded Q&A — curated KB + optional live PubMed. No diagnosis."""
-from __future__ import annotations
+import asyncio
+import logging
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -8,6 +8,7 @@ from backend.app.config import get_settings
 from backend.app.services import kb, ncbi
 
 router = APIRouter()
+log = logging.getLogger("biolink.qa")
 DISCLAIMER = (
     "Research and educational use only. This is not medical advice, diagnosis, or treatment recommendation. "
     "Consult a qualified physician for personal health decisions."
@@ -51,7 +52,6 @@ async def ask(body: QARequest):
             in_scope=False,
         )
 
-    # 1) Curated KB
     hit = kb.match_kb(q)
     citations: list[Citation] = []
     parts: list[str] = []
@@ -62,16 +62,15 @@ async def ask(body: QARequest):
         for s in hit["sources"]:
             citations.append(Citation(label=s))
 
-    # 2) Live PubMed (optional)
-    papers = []
     if body.use_pubmed:
         try:
-            # Bias search toward cancer/diabetes
-            term = f"({q}) AND (cancer OR diabetes OR neoplasm OR \"type 2 diabetes\")"
+            term = f'({q}) AND (cancer OR diabetes OR neoplasm OR "type 2 diabetes")'
             pmids = await ncbi.pubmed_search(term, retmax=body.retmax)
             if pmids:
-                papers = await ncbi.pubmed_summaries(pmids)
-                abstracts = await ncbi.pubmed_abstracts(pmids[:3])
+                papers, abstracts = await asyncio.gather(
+                    ncbi.pubmed_summaries(pmids),
+                    ncbi.pubmed_abstracts(pmids[:1]),
+                )
                 if papers:
                     source = "kb+pubmed" if hit else "pubmed"
                     lines = ["Related PubMed literature (titles):"]
@@ -80,14 +79,14 @@ async def ask(body: QARequest):
                         citations.append(
                             Citation(label=f"PMID:{p['pmid']} — {p['title'][:80]}", url=p["url"])
                         )
-                    # Short abstract snippet for top hit
                     top = pmids[0]
                     if top in abstracts:
                         snippet = abstracts[top][:400].replace("\n", " ")
                         lines.append(f"\nAbstract snippet (PMID {top}): {snippet}…")
                     parts.append("\n".join(lines))
-        except Exception as e:
-            parts.append(f"\n(PubMed lookup unavailable: {str(e)[:120]}. Showing curated knowledge only.)")
+        except Exception:
+            log.warning("PubMed lookup failed", exc_info=True)
+            parts.append("(Live PubMed lookup is temporarily unavailable. Showing curated knowledge only.)")
 
     if not parts:
         return QAResponse(
