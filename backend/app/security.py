@@ -33,7 +33,7 @@ class RateLimiter:
 
 
 CSP = (
-    "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+    "default-src 'self'; img-src 'self' data: https://i.pinimg.com; style-src 'self' 'unsafe-inline'; "
     "script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "
     "frame-ancestors 'none'; form-action 'self'"
 )
@@ -55,7 +55,7 @@ def apply_security_headers(request: Request, response: Response) -> None:
     path = request.url.path
     if path.startswith("/api/"):
         h["Cache-Control"] = "no-store"
-    elif path.endswith((".css", ".js", ".jpg", ".jpeg", ".png", ".svg", ".ico", ".webp")):
+    elif path.endswith((".jpg", ".jpeg", ".png", ".svg", ".ico", ".webp")):
         h.setdefault("Cache-Control", "public, max-age=3600")
     else:
         h.setdefault("Cache-Control", "no-cache")
