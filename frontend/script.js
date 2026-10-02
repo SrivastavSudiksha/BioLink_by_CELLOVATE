@@ -1,3 +1,19 @@
+/** BioAI frontend — talks to FastAPI backend when available */
+const API_BASE = (typeof window !== "undefined" && window.BIOAI_API) || "http://127.0.0.1:8000";
+
+async function apiPost(path, body) {
+  const r = await fetch(API_BASE + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(t || r.statusText);
+  }
+  return r.json();
+}
+
 function escapeHtml(str){return String(str).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 const RESEARCH_PAPERS=[
 {id:"RP-01",keys:["cross-dataset","cross dataset","domain-adaptive","domain adaptive","generaliz","transfer"],title:"Domain-adaptive diabetes prediction across heterogeneous cohorts",problem:"Cross-dataset diabetes prediction",statement:"How can diabetes prediction models maintain reliable performance across different populations and datasets?",solution:"Develop a domain-adaptive ML model trained and validated across multiple independent diabetes datasets.",why:"Single-cohort models often lose discrimination and calibration on new populations.",gap:"Limited multi-dataset training and sparse external AUROC/calibration reporting.",approach:"Domain adaptation with multi-dataset validation; report AUROC and calibration by cohort.",data:"Pima; NHANES; UCI diabetes; external cohorts",outcome:"Domain-adaptive risk model with documented cross-dataset performance (research).",cite:"research_paper.csv RP-01"},
@@ -36,7 +52,11 @@ function matchPaper(query){const q=(query||"").toLowerCase();let best=null,bestH
 all.forEach(p=>{const hits=p.keys.filter(k=>q.includes(k)).length;if(hits>bestHits){bestHits=hits;best=p}});
 if(!best||bestHits===0){if(q.includes("cancer")||q.includes("brca")||q.includes("tp53"))return CANCER_TMPL;if(q.includes("mody")||q.includes("gck"))return MODY_TMPL;return RESEARCH_PAPERS[0]}return best}
 function renderStatement(p){const box=document.getElementById("statementResult");box.innerHTML=`<p><strong>Research problem:</strong> ${escapeHtml(p.problem)}</p><p><strong>Problem statement:</strong> ${escapeHtml(p.statement)}</p><p><strong>Why it matters:</strong> ${escapeHtml(p.why)}</p><p><strong>Current gap:</strong> ${escapeHtml(p.gap)}</p><p><strong>Proposed AI solution:</strong> ${escapeHtml(p.solution)}</p><p><strong>Approach:</strong> ${escapeHtml(p.approach)}</p><p><strong>Data sources:</strong> ${escapeHtml(p.data)}</p><p><strong>Expected outcome:</strong> ${escapeHtml(p.outcome)}</p><p class="cite">Source: ${escapeHtml(p.cite)} · ${escapeHtml(p.title)}</p>`;box.classList.remove("hidden")}
-document.getElementById("generateBtn").addEventListener("click",()=>{const btn=document.getElementById("generateBtn");const domain=(document.getElementById("domainInput").value||"").trim();btn.disabled=true;btn.innerHTML='<span class="loading"></span> Generating…';setTimeout(()=>{renderStatement(matchPaper(domain));btn.disabled=false;btn.textContent="Generate Statement"},400)});
+document.getElementById("generateBtn").addEventListener("click",async()=>{const btn=document.getElementById("generateBtn");const domain=(document.getElementById("domainInput").value||"").trim();btn.disabled=true;btn.innerHTML='<span class="loading"></span> Generating…';
+try{const data=await apiPost("/api/statements/generate",{topic:domain,use_pubmed:false});
+renderStatement({problem:data.research_problem,statement:data.problem_statement,why:data.why_it_matters,gap:data.current_gap,solution:data.proposed_ai_solution,approach:data.approach,data:data.data_sources,outcome:data.expected_outcome,cite:data.cite,title:data.title});
+}catch(e){renderStatement(matchPaper(domain));}
+btn.disabled=false;btn.textContent="Generate Statement"});
 const browse=document.getElementById("problemBrowse");
 RESEARCH_PAPERS.forEach(p=>{const div=document.createElement("div");div.className="sample-card clickable";div.innerHTML=`<h4>${escapeHtml(p.problem)}</h4><p>${escapeHtml(p.statement.slice(0,100))}…</p>`;div.addEventListener("click",()=>{document.getElementById("domainInput").value=p.problem;renderStatement(p)});browse.appendChild(div)});
 const KB=[
@@ -51,7 +71,9 @@ const KB=[
 ];
 function kbReply(query){const q=query.toLowerCase();let best=null,bestHits=0;KB.forEach(e=>{const hits=e.keys.filter(k=>q.includes(k)).length;if(hits>bestHits){bestHits=hits;best=e}});if(!best||bestHits===0)return "No strong match. Try: BRCA1, TP53, MODY, cross-dataset, missing data, SHAP.\n\nDisclaimer: Research use only — not medical advice.";return best.ans+"\n\nDisclaimer: Research/educational use only — not medical diagnosis or treatment advice."}
 function appendMsg(role,text){const box=document.getElementById("chatBox");const div=document.createElement("div");div.className="msg "+role;if(role==="assistant")div.innerHTML=`<span class="avatar" aria-hidden="true">🧬</span><div class="bubble">${text.replace(/\n/g,"<br>")}</div>`;else div.innerHTML=`<div class="bubble">${escapeHtml(text)}</div>`;box.appendChild(div);box.scrollTop=box.scrollHeight}
-function sendChat(){const input=document.getElementById("chatInput");const q=(input.value||"").trim();if(!q)return;appendMsg("user",q);input.value="";const btn=document.getElementById("sendBtn");btn.disabled=true;setTimeout(()=>{appendMsg("assistant",kbReply(q));btn.disabled=false},350)}
+async function sendChat(){const input=document.getElementById("chatInput");const q=(input.value||"").trim();if(!q)return;appendMsg("user",q);input.value="";const btn=document.getElementById("sendBtn");btn.disabled=true;
+try{const data=await apiPost("/api/qa/ask",{question:q,use_pubmed:true,retmax:5});appendMsg("assistant",data.answer)}catch(e){appendMsg("assistant",kbReply(q)+"\n\n(Offline KB — start backend for live PubMed)")}
+btn.disabled=false}
 document.getElementById("sendBtn").addEventListener("click",sendChat);
 document.getElementById("chatInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});
 const DEMO_SEQ=">demo_dna_fragment\nATGGAGGAGCCGCAGTCAGATCCTAGCGTCGAGCCCCCTCTGAGTCAGGAAACATTTTCAGACCTATGGAAACTACTTCCTGAAAACAACGTTCTGTCCCCCTTGCCGTCCCAAGCAATGGATGATTTGATGCTGTCCCCGGACGATATTGAACAATGGTTCACTGAAGACCCAGGTCCAGATGAAGCTCCCAGAATGCCAGAGGCTGCTCCCCCCGTGGCCCCTGCACCAGCAGCTCCTACACCGGCGGCCCCTGCACCAGCCCCCTCCTGGCCCCTGTCATCTTCTGTCCCTTCCCAGAAAACCTACCAGGGCAGCTACGGTTTCCGTCTGGGCTTCTTGCATTCTGGGACAGCCAAGTCTGTGACTTGCACGTACTCCCCTGCCCTCAACAAGATGTTTTGCCAACTGGCCAAGACCTGCCCTGTGCAGCTGTGGGTTGATTCCACACCCCCGCCCGGCACCCGCGTCCGCGCCATGGCCATCTACAAGCAGTCACAGCACATGACGGAGGTTGTGAGGCGCTGCCCCCACCATGAGCGCTGCTCAGATAGCGATGGTCTGGCCCCTCCTCAGCATCTTATCCGAGTGGAAGGAAATTTGCGTGTGGAGTATTTGGATGACAGAAACACTTTTCGACATAGTGTGGTGGTGCCCTATGAGCCGCCTGAGGTCTGGTTTGCAACTGGGGTCTCTGGG";
@@ -127,9 +149,56 @@ pipe = Pipeline([
 # Validate externally. Not a medical device.
 `};
 function pickCode(prompt){const p=(prompt||"").toLowerCase();if(p.includes("brca")||p.includes("cancer")||p.includes("variant"))return CODE.cancer;if(p.includes("missing")||p.includes("imput"))return CODE.missing;if(p.includes("shap")||p.includes("explain"))return CODE.explain;if(p.includes("cross")||p.includes("domain")||p.includes("population")||p.includes("dataset"))return CODE.domain;if(p.includes("diabetes")||p.includes("t2d")||p.includes("risk"))return CODE.explain;return CODE.default}
-document.getElementById("genCodeBtn").addEventListener("click",()=>{const prompt=(document.getElementById("codePrompt").value||"").trim();const btn=document.getElementById("genCodeBtn");btn.disabled=true;btn.innerHTML='<span class="loading"></span> Generating…';setTimeout(()=>{document.getElementById("codeOutput").textContent=pickCode(prompt||"explainable diabetes");document.getElementById("codeResult").classList.remove("hidden");btn.disabled=false;btn.textContent="Generate Code"},400)});
+document.getElementById("genCodeBtn").addEventListener("click",async()=>{const prompt=(document.getElementById("codePrompt").value||"").trim();const btn=document.getElementById("genCodeBtn");btn.disabled=true;btn.innerHTML='<span class="loading"></span> Generating…';
+try{const data=await apiPost("/api/code/generate",{prompt:prompt||"explainable diabetes"});document.getElementById("codeOutput").textContent=data.code}catch(e){document.getElementById("codeOutput").textContent=pickCode(prompt||"explainable diabetes")}
+document.getElementById("codeResult").classList.remove("hidden");btn.disabled=false;btn.textContent="Generate Code"});
 document.getElementById("copyCodeBtn").addEventListener("click",()=>{navigator.clipboard.writeText(document.getElementById("codeOutput").textContent).then(()=>{const b=document.getElementById("copyCodeBtn");const o=b.textContent;b.textContent="Copied!";setTimeout(()=>{b.textContent=o},1500)}).catch(()=>alert("Copy failed"))});
 const codePrompts=document.getElementById("codePrompts");
 [["Cross-dataset / domain-adaptive","cross-dataset diabetes domain adaptation"],["Missing clinical data","missing data imputation diabetes model"],["Explainable risk (SHAP)","explainable T2D risk with SHAP"],["Cancer variant classifier","BRCA pathogenicity classifier ClinVar"]].forEach(([title,prompt])=>{const div=document.createElement("div");div.className="sample-card clickable";div.innerHTML=`<h4>${title}</h4><p>${escapeHtml(prompt)}</p>`;div.addEventListener("click",()=>{document.getElementById("codePrompt").value=prompt;document.getElementById("genCodeBtn").click()});codePrompts.appendChild(div)});
+
+// Override analyze to prefer backend Biopython when available
+(function(){
+  const btn = document.getElementById("analyzeBtn");
+  if (!btn) return;
+  const clone = btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone, btn);
+  clone.addEventListener("click", async () => {
+    const raw = (document.getElementById("fastaInput").value || "").trim();
+    if (!raw) { alert("Paste or upload a FASTA sequence first."); return; }
+    clone.disabled = true;
+    clone.innerHTML = '<span class="loading"></span> Analyzing…';
+    const gene = document.getElementById("refSelect").value;
+    const geneLookup = (gene && gene !== "none") ? gene.toUpperCase() : null;
+    try {
+      const data = await apiPost("/api/fasta/analyze", { sequence: raw, gene_lookup: geneLookup });
+      let orfHtml = "";
+      if (data.orfs && data.orfs.length) {
+        orfHtml = "<p><strong>ORFs</strong>:</p><ul style=\"margin:.4rem 0 .8rem 1.2rem;font-size:.88rem;color:var(--text-muted)\">" +
+          data.orfs.map(o => `<li>Frame ${o.frame}: ${o.start}–${o.end} (${o.length_bp} bp)</li>`).join("") + "</ul>";
+      }
+      let geneHtml = "";
+      if (data.gene && data.gene.summary) {
+        geneHtml = `<div class="ok-box"><strong>NCBI Gene:</strong> ${escapeHtml(data.gene.name)} — ${escapeHtml((data.gene.summary||"").slice(0,300))}…<br><a href="${data.gene.url}" target="_blank" rel="noopener">Gene record</a></div>`;
+      }
+      document.getElementById("fastaResult").innerHTML = `
+        <h3 style="margin-bottom:.75rem;font-weight:600;">📄 ${escapeHtml(data.id)}</h3>
+        <div class="metrics">
+          <div class="metric"><span class="label">Type</span><span class="value">${escapeHtml(data.type)}</span></div>
+          <div class="metric"><span class="label">Length</span><span class="value">${Number(data.length).toLocaleString()} ${escapeHtml(data.unit)}</span></div>
+          <div class="metric"><span class="label">GC</span><span class="value">${data.gc_percent != null ? data.gc_percent + "%" : "n/a"}</span></div>
+          <div class="metric"><span class="label">Unique</span><span class="value">${data.unique_symbols}</span></div>
+        </div>
+        ${orfHtml}${geneHtml}
+        <div class="ok-box">✅ ${escapeHtml(data.disclaimer || "Analysis complete.")}</div>`;
+      document.getElementById("fastaResult").classList.remove("hidden");
+    } catch (e) {
+      alert("Backend unavailable — using offline analyzer. Start: uvicorn backend.app.main:app\n" + e.message);
+      // fall through: user can still use offline if original listener remained — we replaced it
+    }
+    clone.disabled = false;
+    clone.textContent = "Analyze Sequence";
+  });
+})();
+
 mainSearch.focus();
 });
